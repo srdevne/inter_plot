@@ -1,0 +1,130 @@
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import numpy as np
+
+# Example data
+hist_data = np.random.normal(loc=0, scale=1, size=1000)
+x = np.linspace(0, 10, 100)
+y1 = np.sin(x)
+y2 = np.cos(x)
+
+# Create the first histogram
+hist1, edges1 = np.histogram(hist_data, bins=30)
+fig1 = go.Figure()
+fig1.add_trace(go.Histogram(x=hist_data, nbinsx=30, marker_color='red'))
+
+# Create the second histogram
+hist2, edges2 = np.histogram(hist_data, bins=30)
+fig2 = go.Figure()
+fig2.add_trace(go.Histogram(x=hist_data, nbinsx=30, marker_color='blue'))
+
+# Create the first line plot
+fig3 = go.Figure()
+fig3.add_trace(go.Scatter(x=x, y=y1, mode='lines', line=dict(color='green')))
+
+# Create the second line plot
+fig4 = go.Figure()
+fig4.add_trace(go.Scatter(x=x, y=y2, mode='lines', line=dict(color='purple')))
+
+# Predefined threshold values
+thresholds = [1, 2, 3, 4, 5]
+
+# Create subplots
+fig = make_subplots(rows=2, cols=2, subplot_titles=("Histogram 1", "Histogram 2", "Line Plot 1", "Line Plot 2"))
+
+# Add histograms to subplots
+fig.add_trace(fig1.data[0], row=1, col=1)
+fig.add_trace(fig2.data[0], row=1, col=2)
+
+# Add line plots to subplots
+fig.add_trace(fig3.data[0], row=2, col=1)
+fig.add_trace(fig4.data[0], row=2, col=2)
+
+# Create vertical line traces for thresholds
+line_traces = []
+for threshold in thresholds:
+    line_trace1 = go.Scatter(x=[threshold, threshold], y=[0, 1], mode='lines',
+                            line=dict(color='black', dash='dash'), showlegend=False)
+    line_trace2 = go.Scatter(x=[threshold, threshold], y=[0, 1], mode='lines',
+                            line=dict(color='black', dash='dash'), showlegend=False)
+    line_trace3 = go.Scatter(x=[threshold, threshold], y=[-1, 1], mode='lines',
+                            line=dict(color='black', dash='dash'), showlegend=False)
+    line_trace4 = go.Scatter(x=[threshold, threshold], y=[-1, 1], mode='lines',
+                            line=dict(color='black', dash='dash'), showlegend=False)
+    line_traces.append((line_trace1, line_trace2, line_trace3, line_trace4))
+
+# Initialize selected thresholds with all thresholds
+selected_thresholds = thresholds.copy()
+
+# Update plot annotations on threshold selection
+def update_annotations(selected_thresholds):
+    updated_traces = []
+    for threshold, (line_trace1, line_trace2, line_trace3, line_trace4) in zip(thresholds, line_traces):
+        if threshold in selected_thresholds:
+            updated_traces.extend((line_trace1, line_trace2, line_trace3, line_trace4))
+    fig.update_traces(updates={'x': [], 'y': []})  # Clear existing line traces
+    fig.add_traces(updated_traces)  # Add updated line traces
+
+# Initialize line traces
+fig.add_traces([line_trace[0] for line_trace in line_traces])  # Add line traces to the first histogram subplot
+
+# Define JavaScript code
+js_code = """
+function updateThresholds() {
+    var checkboxes = document.getElementsByClassName('threshold-checkbox');
+    var selectedThresholds = [];
+    for (var i = 0; i < checkboxes.length; i++) {
+        if (checkboxes[i].checked) {
+            selectedThresholds.push(parseFloat(checkboxes[i].value));
+        }
+    }
+    // Call the update_annotations function in Python via the Pyodide interface
+    pyodide.globals.update_annotations(selectedThresholds);
+}
+
+// Attach click event listener to checkboxes
+var checkboxes = document.getElementsByClassName('threshold-checkbox');
+for (var i = 0; i < checkboxes.length; i++) {
+    checkboxes[i].addEventListener('click', updateThresholds);
+}
+"""
+
+# Create checkboxes HTML
+checkboxes_html = "<br>".join([
+    f"<input type='checkbox' class='threshold-checkbox' value='{threshold}' checked> {threshold}"
+    for threshold in thresholds
+])
+checkboxes_html += "<br><br>"
+
+# Save the plot as an HTML file
+fig.update_layout(annotations=[])  # Remove existing annotations
+fig.add_annotation(
+    xref="paper",
+    yref="paper",
+    x=0.5,
+    y=-0.2,
+    text=checkboxes_html,
+    showarrow=False,
+    font=dict(
+        family="Courier New, monospace",
+        size=12,
+        color="black"
+    ),
+)
+fig.add_annotation(
+    xref="paper",
+    yref="paper",
+    x=0,
+    y=0,
+    text=js_code,
+    showarrow=False,
+    font=dict(
+        family="Courier New, monospace",
+        size=12,
+        color="black"
+    ),
+    opacity=0
+)
+fig.write_html("threshold_plot4.html",include_plotlyjs="cdn")
+
+print("Graph saved as 'threshold_plot4.html'. Open the file in your browser to view the graph and select thresholds.")
